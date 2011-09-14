@@ -1,0 +1,22 @@
+--- busybox-1.6.0/init/init.c	2007-06-01 13:48:40.000000000 +0200
++++ src/init/init.c	2007-06-11 19:13:55.000000000 +0200
+@@ -265,6 +265,7 @@
+ {
+ 	struct serial_struct sr;
+ 	char *s;
++	int i;
+ 
+ 	s = getenv("CONSOLE");
+ 	if (!s) s = getenv("console");
+@@ -290,6 +291,11 @@
+ #endif
+ 	} else if (!s)
+ 		putenv((char*)"TERM=linux");
++
++	for (i = 0; i < 3; i++) {
++		if (dup2(i, i))
++			dup2(i, device_open(bb_dev_null, O_RDWR));
++	}
+ }
+ 
+ static void fixup_argv(int argc, char **argv, const char *new_argv0)

@@ -1,0 +1,12 @@
+--- busybox-1.6.0/util-linux/switch_root.c	2007-06-01 13:48:41.000000000 +0200
++++ src/util-linux/switch_root.c	2007-06-07 19:09:14.000000000 +0200
+@@ -92,8 +92,7 @@
+ 	// from all the people who WILL eat their filesystems.)
+ 
+ 	if (lstat("/init", &st1) || !S_ISREG(st1.st_mode) || statfs("/", &stfs) ||
+-		(stfs.f_type != RAMFS_MAGIC && stfs.f_type != TMPFS_MAGIC) ||
+-		getpid() != 1)
++	    (stfs.f_type != RAMFS_MAGIC && stfs.f_type != TMPFS_MAGIC))
+ 	{
+ 		bb_error_msg_and_die("not rootfs");
+ 	}

@@ -1,0 +1,41 @@
+diff -rNu src-orig/networking/udhcp/files.c src/networking/udhcp/files.c
+--- src-orig/networking/udhcp/files.c	2007-12-05 17:54:04.000000000 +0100
++++ src/networking/udhcp/files.c	2007-12-05 17:54:25.000000000 +0100
+@@ -358,6 +358,7 @@
+ 	unsigned i;
+ 	time_t curr = time(0);
+ 	unsigned long tmp_time;
++	struct static_lease *cur;
+ 
+ 	fp = open3_or_warn(server_config.lease_file, O_WRONLY|O_CREAT|O_TRUNC, 0666);
+ 	if (fp < 0) {
+@@ -365,7 +366,8 @@
+ 	}
+ 
+ 	for (i = 0; i < server_config.max_leases; i++) {
+-		if (leases[i].yiaddr != 0) {
++		if (leases[i].yiaddr != 0 &&
++		    !reservedIp(server_config.static_leases, leases[i].yiaddr)) {
+ 
+ 			/* screw with the time in the struct, for easier writing */
+ 			tmp_time = leases[i].expires;
+@@ -383,6 +385,19 @@
+ 			leases[i].expires = tmp_time;
+ 		}
+ 	}
++
++	/* write static leases too */
++	cur = server_config.static_leases;
++	while (cur != NULL) {
++		struct dhcpOfferedAddr dummy;
++
++		memset(&dummy, 0, sizeof (dummy));
++		memcpy(dummy.chaddr, cur->mac, 6);
++		memcpy(&dummy.yiaddr, cur->ip, sizeof (dummy.yiaddr));
++		dummy.expires = ~0;
++		full_write(fp, &dummy, sizeof(dummy));
++		cur = cur->next;
++	}
+ 	close(fp);
+ 
+ 	if (server_config.notify_file) {

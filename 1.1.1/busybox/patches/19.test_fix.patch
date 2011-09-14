@@ -1,0 +1,11 @@
+--- busybox-1.6.0/coreutils/test.c	2007-06-01 13:48:34.000000000 +0200
++++ src/coreutils/test.c	2007-06-07 19:54:33.000000000 +0200
+@@ -227,7 +227,7 @@
+ 		t_lex(argv[2 + _off]);
+ 		if (t_wp_op && t_wp_op->op_type == BINOP) {
+ 			t_wp = &argv[1 + _off];
+-			return binop() == 0;
++			return binop() == 1;
+ 		}
+ 	}
+ 	t_wp = &argv[1];

@@ -1,0 +1,11 @@
+--- busybox-1.6.0/networking/udhcp/leases.c	2007-06-01 13:48:29.000000000 +0200
++++ src/networking/udhcp/leases.c	2007-12-10 21:48:01.000000000 +0100
+@@ -33,7 +33,7 @@
+ 	for (j = 0; j < 16 && !chaddr[j]; j++);
+ 
+ 	for (i = 0; i < server_config.max_leases; i++)
+-		if ((j != 16 && memcmp(leases[i].chaddr, chaddr, 16) != 0)
++		if ((j != 16 && memcmp(leases[i].chaddr, chaddr, 16) == 0)
+ 		 || (yiaddr && leases[i].yiaddr == yiaddr)
+ 		) {
+ 			memset(&(leases[i]), 0, sizeof(struct dhcpOfferedAddr));

@@ -1,0 +1,11 @@
+--- busybox-1.6.0/networking/udhcp/options.c	2007-06-01 13:48:29.000000000 +0200
++++ src/networking/udhcp/options.c	2007-06-07 19:07:39.000000000 +0200
+@@ -46,6 +46,8 @@
+ #if ENABLE_FEATURE_RFC3397
+ 	{"search",      OPTION_STR1035 | OPTION_LIST | OPTION_REQ, 0x77},
+ #endif
++	{"option141",   OPTION_STRING,                          0x8D},
++	{"option142",   OPTION_STRING,                          0x8E},
+ 	/* MSIE's "Web Proxy Autodiscovery Protocol" support */
+ 	{"wpad",        OPTION_STRING,                          0xfc},
+ 	{"",            0x00,                                   0x00}

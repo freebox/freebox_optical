@@ -1,0 +1,18 @@
+--- src-orig/networking/udhcp/files.c   2007-12-05 17:54:04.000000000 +0100
++++ src/networking/udhcp/files.c        2007-12-05 17:54:25.000000000 +0100
+@@ -409,6 +424,15 @@
+ 	) {
+ 		/* ADDME: is it a static lease */
+ 		if (lease.yiaddr >= server_config.start && lease.yiaddr <= server_config.end) {
++
++			if (server_config.static_leases &&
++			    getIpByMac(server_config.static_leases,
++				       lease.chaddr))
++				continue;
++
++			if (lease.expires == ~0)
++				continue;
++
+ 			lease.expires = ntohl(lease.expires);
+ 			if (!server_config.remaining) lease.expires -= time(0);
+ 			if (!(add_lease(lease.chaddr, lease.yiaddr, lease.expires))) {

@@ -1,0 +1,14 @@
+--- busybox-1.6.0/libbb/lineedit.c	2007-06-01 13:48:35.000000000 +0200
++++ src/libbb/lineedit.c	2007-06-07 18:51:09.000000000 +0200
+@@ -1127,11 +1127,7 @@
+ 						pbuf = xzalloc(256);
+ 						if (gethostname(pbuf, 255) < 0) {
+ 							strcpy(pbuf, "?");
+-						} else {
+-							char *s = strchr(pbuf, '.');
+-							if (s)
+-								*s = '\0';
+						}
+ 						hostname_buf = pbuf;
+ 					}
+ 					break;

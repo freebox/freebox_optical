@@ -1,0 +1,10 @@
+--- busybox-1.6.0/Makefile	2007-06-01 16:25:04.000000000 +0200
++++ src/Makefile	2007-06-07 18:48:42.000000000 +0200
+@@ -300,6 +300,7 @@
+ # Use LINUXINCLUDE when you must reference the include/ directory.
+ # Needed to be compatible with the O= option
+ CFLAGS		:= $(CFLAGS)
++CFLAGS		+= $(EXTRA_CFLAGS)
+ CPPFLAGS	:= $(CPPFLAGS)
+ AFLAGS		:= $(AFLAGS)
+ LDFLAGS		:= $(LDFLAGS)

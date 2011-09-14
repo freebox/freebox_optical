@@ -1,0 +1,255 @@
+--- src/shell/ash.c.orig	2007-06-01 13:48:33.000000000 +0200
++++ src/shell/ash.c	2008-09-01 21:58:59.000000000 +0200
+@@ -174,8 +174,6 @@
+ #define EXSIG 5         /* trapped signal in wait(1) */
+ static volatile int suppressint;
+ static volatile sig_atomic_t intpending;
+-/* do we generate EXSIG events */
+-static int exsig;
+ /* last pending signal */
+ static volatile sig_atomic_t pendingsig;
+ 
+@@ -245,6 +243,7 @@
+ 	i = EXSIG;
+ 	if (gotsig[SIGINT - 1] && !trap[SIGINT]) {
+ 		if (!(rootshell && iflag)) {
++			/* Kill ourself with SIGINT */
+ 			signal(SIGINT, SIG_DFL);
+ 			raise(SIGINT);
+ 		}
+@@ -297,15 +296,6 @@
+ 			raise_interrupt(); \
+ 	} while (0)
+ 
+-#define EXSIGON \
+-	do { \
+-		exsig++; \
+-		xbarrier(); \
+-		if (pendingsig) \
+-			raise_exception(EXSIG); \
+-	} while (0)
+-/* EXSIG is turned off by evalbltin(). */
+-
+ /*
+  * Ignore a signal. Only one usage site - in forkchild()
+  */
+@@ -327,10 +317,10 @@
+ 	gotsig[signo - 1] = 1;
+ 	pendingsig = signo;
+ 
+-	if (exsig || (signo == SIGINT && !trap[SIGINT])) {
++	if ( /* exsig || */ (signo == SIGINT && !trap[SIGINT])) {
+ 		if (!suppressint) {
+ 			pendingsig = 0;
+-			raise_interrupt();
++			raise_interrupt(); /* does not return */
+ 		}
+ 		intpending = 1;
+ 	}
+@@ -3170,12 +3160,11 @@
+ 	struct sigaction act;
+ 
+ 	t = trap[signo];
++	action = S_IGN;
+ 	if (t == NULL)
+ 		action = S_DFL;
+ 	else if (*t != '\0')
+ 		action = S_CATCH;
+-	else
+-		action = S_IGN;
+ 	if (rootshell && action == S_DFL) {
+ 		switch (signo) {
+ 		case SIGINT:
+@@ -3208,7 +3197,7 @@
+ 		/*
+ 		 * current setting unknown
+ 		 */
+-		if (sigaction(signo, 0, &act) == -1) {
++		if (sigaction(signo, NULL, &act) == -1) {
+ 			/*
+ 			 * Pretend it worked; maybe we should give a warning
+ 			 * here, but other shells don't. We don't alter
+@@ -3216,19 +3205,19 @@
+ 			 */
+ 			return;
+ 		}
++		tsig = S_RESET; /* force to be set */
+ 		if (act.sa_handler == SIG_IGN) {
++			tsig = S_HARD_IGN;
+ 			if (mflag
+ 			 && (signo == SIGTSTP || signo == SIGTTIN || signo == SIGTTOU)
+ 			) {
+ 				tsig = S_IGN;   /* don't hard ignore these */
+-			} else
+-				tsig = S_HARD_IGN;
+-		} else {
+-			tsig = S_RESET; /* force to be set */
++			}
+ 		}
+ 	}
+ 	if (tsig == S_HARD_IGN || tsig == action)
+ 		return;
++	act.sa_handler = SIG_DFL;
+ 	switch (action) {
+ 	case S_CATCH:
+ 		act.sa_handler = onsig;
+@@ -3236,13 +3225,11 @@
+ 	case S_IGN:
+ 		act.sa_handler = SIG_IGN;
+ 		break;
+-	default:
+-		act.sa_handler = SIG_DFL;
+ 	}
+ 	*t = action;
+ 	act.sa_flags = 0;
+ 	sigfillset(&act.sa_mask);
+-	sigaction(signo, &act, 0);
++	sigaction(signo, &act, NULL);
+ }
+ 
+ /* mode flags for set_curjob */
+@@ -3677,7 +3664,7 @@
+ #endif
+ 	if (block == 0)
+ 		flags |= WNOHANG;
+-	return wait3(status, flags, (struct rusage *)NULL);
++	return waitpid(-1, status, flags);
+ }
+ 
+ /*
+@@ -3695,8 +3682,14 @@
+ 	TRACE(("dowait(%d) called\n", block));
+ 	pid = waitproc(block, &status);
+ 	TRACE(("wait returns pid %d, status=%d\n", pid, status));
+-	if (pid <= 0)
++ 	if (pid <= 0) {
++		/* If we were doing blocking wait and (probably) got EINTR,
++		 * check for pending sigs received while waiting.
++		 * (NB: can be moved into callers if needed) */
++		if (block == DOWAIT_BLOCK && pendingsig)
++			raise_exception(EXSIG);
+ 		return pid;
++	}
+ 	INT_OFF;
+ 	thisjob = NULL;
+ 	for (jp = curjob; jp; jp = jp->prev_job) {
+@@ -3920,7 +3913,10 @@
+ 	int retval;
+ 	struct job *jp;
+ 
+-	EXSIGON;
++//	exsig++;
++//	xbarrier();
++	if (pendingsig)
++		raise_exception(EXSIG);
+ 
+ 	nextopt(nullstr);
+ 	retval = 0;
+@@ -3931,10 +3927,8 @@
+ 		for (;;) {
+ 			jp = curjob;
+ 			while (1) {
+-				if (!jp) {
+-					/* no running procs */
+-					goto out;
+-				}
++				if (!jp) /* no running procs */
++					goto ret;
+ 				if (jp->state == JOBRUNNING)
+ 					break;
+ 				jp->waited = 1;
+@@ -3969,7 +3963,7 @@
+ 		;
+ 	} while (*++argv);
+ 
+- out:
++ ret:
+ 	return retval;
+ }
+ 
+@@ -4366,7 +4360,7 @@
+ 	char **tp;
+ 
+ 	for (tp = trap; tp < &trap[NSIG]; tp++) {
+-		if (*tp && **tp) {      /* trap not NULL or SIG_IGN */
++		if (*tp && **tp) {      /* trap not NULL or "" (SIG_IGN) */
+ 			INT_OFF;
+ 			free(*tp);
+ 			*tp = NULL;
+@@ -4524,8 +4518,8 @@
+ 		 * intuit from the subprocess exit status whether a SIGINT
+ 		 * occurred, and if so interrupt ourselves.  Yuck.  - mycroft
+ 		 */
+-		if (jp->sigint)
+-			raise(SIGINT);
++		if (jp->sigint) /* TODO: do the same with all signals */
++			raise(SIGINT); /* ... by raise(jp->sig) instead? */
+ 	}
+ 	if (jp->state == JOBDONE)
+ #endif
+@@ -6171,7 +6165,7 @@
+ 		p++;
+ 	if (*p == '.')
+ 		matchdot++;
+-	while (! intpending && (dp = readdir(dirp)) != NULL) {
++	while (!intpending && (dp = readdir(dirp)) != NULL) {
+ 		if (dp->d_name[0] == '.' && ! matchdot)
+ 			continue;
+ 		if (pmatch(start, dp->d_name)) {
+@@ -7335,7 +7329,7 @@
+ 	char *q;
+ 	int i;
+ 	int savestatus;
+-	int skip = 0;
++	int skip;
+ 
+ 	savestatus = exitstatus;
+ 	pendingsig = 0;
+@@ -7352,10 +7346,10 @@
+ 		skip = evalstring(p, SKIPEVAL);
+ 		exitstatus = savestatus;
+ 		if (skip)
+-			break;
++			return skip;
+ 	}
+ 
+-	return skip;
++	return 0;
+ }
+ 
+ /* forward declarations - evaluation is fairly recursive business... */
+@@ -8333,22 +8327,15 @@
+ 		}
+ 		if (evalbltin(cmdentry.u.cmd, argc, argv)) {
+ 			int exit_status;
+-			int i, j;
+-
+-			i = exception;
++			int i = exception;
+ 			if (i == EXEXIT)
+ 				goto raise;
+-
+ 			exit_status = 2;
+-			j = 0;
+ 			if (i == EXINT)
+-				j = SIGINT;
++				exit_status = 128 + SIGINT;
+ 			if (i == EXSIG)
+-				j = pendingsig;
+-			if (j)
+-				exit_status = j + 128;
++				exit_status = 128 + pendingsig;
+ 			exitstatus = exit_status;
+-
+ 			if (i == EXINT || spclbltin > 0) {
+  raise:
+ 				longjmp(exception_handler->loc, 1);
+@@ -8398,7 +8385,7 @@
+ 	exitstatus |= ferror(stdout);
+ 	clearerr(stdout);
+ 	commandname = savecmdname;
+-	exsig = 0;
++//	exsig = 0;
+ 	exception_handler = savehandler;
+ 
+ 	return i;

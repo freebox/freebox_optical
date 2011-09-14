@@ -1,0 +1,34 @@
+diff -ru src.orig/modutils/modprobe.c src/modutils/modprobe.c
+--- src.orig/modutils/modprobe.c	2009-05-20 15:26:37.000000000 +0200
++++ src/modutils/modprobe.c	2009-05-20 15:48:36.000000000 +0200
+@@ -390,9 +390,8 @@
+ 					mods++; /* there was a path for this module... */
+ 
+ 				/* find the path of the module */
+-				modpath = strchr(buffer, '/'); /* ... and this is the path */
+-				if (!modpath)
+-					modpath = buffer; /* module with no path */
++				modpath = buffer;
++
+ 				/* find the end of the module name in the file name */
+ 				if (ENABLE_FEATURE_2_6_MODULES &&
+ 				     (k_version > 4) && (*(col-3) == '.') &&
+@@ -412,13 +411,17 @@
+ 					current = current->m_next;
+ 				}
+ 				current->m_name    = mod;
+-				current->m_path    = xstrdup(modpath);
+ 				current->m_options = NULL;
+ 				current->m_isalias = 0;
+ 				current->m_depcnt  = 0;
+ 				current->m_deparr  = 0;
+ 				current->m_next    = 0;
+ 
++				if (*modpath == '/')
++					current->m_path = xstrdup(modpath);
++				else
++					current->m_path = xasprintf("/lib/modules/%s/%s", un.release, modpath);
++
+ 				p = col + 1;
+ 			} else
+ 				/* this line is not a dep description */

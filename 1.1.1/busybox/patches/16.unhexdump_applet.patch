@@ -1,0 +1,136 @@
+diff -Nru busybox-1.4.2/include/applets.h src/include/applets.h
+--- busybox-1.4.2/include/applets.h	2007-03-18 17:59:34.000000000 +0100
++++ src/include/applets.h	2007-04-23 18:00:13.000000000 +0200
+@@ -303,6 +303,7 @@
+ USE_UMOUNT(APPLET(umount, _BB_DIR_BIN, _BB_SUID_NEVER))
+ USE_UNAME(APPLET(uname, _BB_DIR_BIN, _BB_SUID_NEVER))
+ USE_UNCOMPRESS(APPLET(uncompress, _BB_DIR_BIN, _BB_SUID_NEVER))
++USE_UNHEXDUMP(APPLET(unhexdump, _BB_DIR_BIN, _BB_SUID_NEVER))
+ USE_UNIQ(APPLET(uniq, _BB_DIR_USR_BIN, _BB_SUID_NEVER))
+ USE_UNIX2DOS(APPLET_ODDNAME(unix2dos, dos2unix, _BB_DIR_USR_BIN, _BB_SUID_NEVER, unix2dos))
+ USE_UNLZMA(APPLET(unlzma, _BB_DIR_USR_BIN, _BB_SUID_NEVER))
+diff -Nru busybox-1.4.2/include/usage.h src/include/usage.h
+--- busybox-1.4.2/include/usage.h	2007-03-18 17:59:34.000000000 +0100
++++ src/include/usage.h	2007-04-23 17:58:44.000000000 +0200
+@@ -1229,6 +1229,9 @@
+        "	-v		Display all input data\n" \
+        "	-x		Two-byte hexadecimal display"
+ 
++#define unhexdump_trivial_usage \
++	"unhexdump < in > out"
++
+ #define hostid_trivial_usage \
+        ""
+ #define hostid_full_usage \
+diff -Nru busybox-1.4.2/util-linux/Config.in src/util-linux/Config.in
+--- busybox-1.4.2/util-linux/Config.in	2007-03-18 17:59:37.000000000 +0100
++++ src/util-linux/Config.in	2007-04-23 17:57:40.000000000 +0200
+@@ -210,6 +210,14 @@
+ 	  The hexdump utility is used to display binary data in a readable
+ 	  way that is comparable to the output from most hex editors.
+ 
++config UNHEXDUMP
++	bool "unhexdump"
++	default n
++	help
++
++	  The  unhexdump  utility  is  used  to convert  a  stream  of
++	  hexadecimal chars to in a raw binary form.
++
+ config HWCLOCK
+ 	bool "hwclock"
+ 	default n
+diff -Nru busybox-1.4.2/util-linux/Kbuild src/util-linux/Kbuild
+--- busybox-1.4.2/util-linux/Kbuild	2007-03-18 17:59:37.000000000 +0100
++++ src/util-linux/Kbuild	2007-04-23 17:56:04.000000000 +0200
+@@ -30,3 +30,4 @@
+ lib-$(CONFIG_SWAPONOFF)		+=swaponoff.o
+ lib-$(CONFIG_SWITCH_ROOT)	+=switch_root.o
+ lib-$(CONFIG_UMOUNT)		+=umount.o
++lib-$(CONFIG_UNHEXDUMP)		+=unhexdump.o
+diff -Nru busybox-1.4.2/util-linux/unhexdump.c src/util-linux/unhexdump.c
+--- busybox-1.4.2/util-linux/unhexdump.c	1970-01-01 01:00:00.000000000 +0100
++++ src/util-linux/unhexdump.c	2007-04-23 18:48:46.000000000 +0200
+@@ -0,0 +1,82 @@
++/*
++ * main.c for unhexdump
++ * Created by <nschichan@freebox.fr> on Mon Apr 23 15:04:43 2007
++ * Freebox SA
++ */
++
++#include <unistd.h>
++#include <string.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++int to_hex(int c)
++{
++	const char *pos;
++	const char *HEX_chars = "0123456789ABCDEF";
++	const char *hex_chars = "0123456789abcdef";
++
++	pos = strchr(hex_chars, c);
++	if (pos == NULL) {
++		pos = strchr(HEX_chars, c);
++		if (pos == NULL)
++			return -1;
++		else
++			return pos - HEX_chars;
++	} else
++		return pos - hex_chars;
++}
++
++/*
++ * convert a stream of hexadecimal on chars on stdin to raw binary
++ * data. output is done on stdout.
++ *
++ * I was unable to find any ready to use busybox applet to do so, but
++ * if you do, I'll be glad to revert this code.
++ */
++int
++unhexdump_main(int argc, char **argv)
++{
++	char buf[4096];
++
++	while (1) {
++		int i;
++		int len;
++
++		len = fread(buf, 1, sizeof (buf), stdin);
++		if (len < 0) {
++			perror("stdin");
++			return 1;
++		}
++
++		if (len == 0)
++			break;
++		for (i = 0; i < len; i += 2) {
++			int c;
++			unsigned val;
++
++			if (buf[i] == '\n') {
++				fflush(NULL);
++				exit(0);
++			}
++
++			c = to_hex(buf[i]);
++			if (c < 0) {
++				fprintf(stderr, "bad hex: %c\n", c);
++				exit(1);
++			}
++			val = c << 4;
++			c = to_hex(buf[i + 1]);
++			if (c < 0) {
++				fprintf(stderr, "bad hex: %c\n", c);
++				exit(1);
++			}
++			val |= c;
++
++			fwrite(&val, 1, 1, stdout);
++		}
++	}
++
++	(void)argc;
++	(void)argv;
++	return 0;
++}

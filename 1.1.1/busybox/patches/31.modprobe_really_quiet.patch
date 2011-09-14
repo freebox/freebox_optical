@@ -1,0 +1,38 @@
+--- busybox-1.6.0/modutils/modprobe.c	2007-06-01 13:48:31.000000000 +0200
++++ src/modutils/modprobe.c	2009-03-12 15:01:27.000000000 +0100
+@@ -721,7 +721,8 @@
+ 	}
+ 
+ 	if (!dt) {
+-		bb_error_msg("module %s not found", mod);
++		if (!quiet)
++			bb_error_msg("module %s not found", mod);
+ 		return;
+ 	}
+ 
+@@ -744,11 +745,13 @@
+ 				}
+ 				dt = adt;
+ 			} else {
+-				bb_error_msg("module %s not found", mod);
++				if (!quiet)
++					bb_error_msg("module %s not found", mod);
+ 				return;
+ 			}
+ 		} else {
+-			bb_error_msg("bad alias %s", dt->m_name);
++			if (!quiet)
++				bb_error_msg("bad alias %s", dt->m_name);
+ 			return;
+ 		}
+ 	}
+@@ -888,7 +891,8 @@
+ 			bb_error_msg_and_die("no module or pattern provided");
+ 
+ 		if (mod_insert(argv[optind], argc - optind - 1, argv + optind + 1))
+-			bb_error_msg_and_die("failed to load module %s", argv[optind]);
++			if (!quiet)
++				bb_error_msg_and_die("failed to load module %s", argv[optind]);
+ 	}
+ 
+ 	/* Here would be a good place to free up memory allocated during the dependencies build. */

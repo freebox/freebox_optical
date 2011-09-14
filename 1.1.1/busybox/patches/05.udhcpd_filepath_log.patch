@@ -1,0 +1,126 @@
+diff -aur busybox-1.6.0/networking/udhcp/dhcpd.c src/networking/udhcp/dhcpd.c
+--- busybox-1.6.0/networking/udhcp/dhcpd.c	2007-06-01 13:48:29.000000000 +0200
++++ src/networking/udhcp/dhcpd.c	2007-06-07 18:59:10.000000000 +0200
+@@ -42,7 +42,7 @@
+ 	}
+ 
+ 	if (ENABLE_FEATURE_UDHCP_SYSLOG) {
+-		openlog(applet_name, LOG_PID, LOG_LOCAL0);
++		openlog(applet_name, 0, LOG_LOCAL4);
+ 		logmode |= LOGMODE_SYSLOG;
+ 	}
+ 
+@@ -155,14 +155,14 @@
+ 
+ 		switch (state[0]) {
+ 		case DHCPDISCOVER:
+-			DEBUG("Received DISCOVER");
++			bb_info_msg("Received DISCOVER");
+ 
+ 			if (sendOffer(&packet) < 0) {
+ 				bb_error_msg("send OFFER failed");
+ 			}
+ 			break;
+ 		case DHCPREQUEST:
+-			DEBUG("received REQUEST");
++			bb_info_msg("received REQUEST");
+ 
+ 			requested = get_option(&packet, DHCP_REQUESTED_IP);
+ 			server_id = get_option(&packet, DHCP_SERVER_ID);
+@@ -173,7 +173,7 @@
+ 			if (lease) {
+ 				if (server_id) {
+ 					/* SELECTING State */
+-					DEBUG("server_id = %08x", ntohl(server_id_align));
++					bb_info_msg("server_id = %08x", ntohl(server_id_align));
+ 					if (server_id_align == server_config.server && requested
+ 					 && requested_align == lease->yiaddr
+ 					) {
+@@ -218,19 +218,19 @@
+ 			}
+ 			break;
+ 		case DHCPDECLINE:
+-			DEBUG("Received DECLINE");
++			bb_info_msg("Received DECLINE");
+ 			if (lease) {
+ 				memset(lease->chaddr, 0, 16);
+ 				lease->expires = time(0) + server_config.decline_time;
+ 			}
+ 			break;
+ 		case DHCPRELEASE:
+-			DEBUG("Received RELEASE");
++			bb_info_msg("Received RELEASE");
+ 			if (lease)
+ 				lease->expires = time(0);
+ 			break;
+ 		case DHCPINFORM:
+-			DEBUG("Received INFORM");
++			bb_info_msg("Received INFORM");
+ 			send_inform(&packet);
+ 			break;
+ 		default:
+diff -aur busybox-1.6.0/networking/udhcp/packet.c src/networking/udhcp/packet.c
+--- busybox-1.6.0/networking/udhcp/packet.c	2007-06-01 13:48:29.000000000 +0200
++++ src/networking/udhcp/packet.c	2007-06-07 18:52:50.000000000 +0200
+@@ -52,7 +52,7 @@
+ 	memset(packet, 0, sizeof(struct dhcpMessage));
+ 	bytes = read(fd, packet, sizeof(struct dhcpMessage));
+ 	if (bytes < 0) {
+-		DEBUG("cannot read on listening socket, ignoring");
++		bb_info_msg("cannot read on listening socket, ignoring");
+ 		return -1;
+ 	}
+ 
+@@ -60,14 +60,14 @@
+ 		bb_error_msg("received bogus message, ignoring");
+ 		return -2;
+ 	}
+-	DEBUG("Received a packet");
++	bb_info_msg("Received a packet");
+ 
+ 	if (packet->op == BOOTREQUEST && (vendor = get_option(packet, DHCP_VENDOR))) {
+ 		for (i = 0; broken_vendors[i][0]; i++) {
+ 			if (vendor[OPT_LEN - 2] == (uint8_t)strlen(broken_vendors[i])
+ 			 && !strncmp((char*)vendor, broken_vendors[i], vendor[OPT_LEN - 2])
+ 			) {
+-				DEBUG("broken client (%s), forcing broadcast",
++				bb_info_msg("broken client (%s), forcing broadcast",
+ 					broken_vendors[i]);
+ 				packet->flags |= htons(BROADCAST_FLAG);
+ 			}
+diff -aur busybox-1.6.0/networking/udhcp/serverpacket.c src/networking/udhcp/serverpacket.c
+--- busybox-1.6.0/networking/udhcp/serverpacket.c	2007-06-01 13:48:29.000000000 +0200
++++ src/networking/udhcp/serverpacket.c	2007-06-07 18:52:50.000000000 +0200
+@@ -42,19 +42,19 @@
+ 	uint32_t ciaddr;
+ 
+ 	if (force_broadcast) {
+-		DEBUG("broadcasting packet to client (NAK)");
++		bb_info_msg("broadcasting packet to client (NAK)");
+ 		ciaddr = INADDR_BROADCAST;
+ 		chaddr = MAC_BCAST_ADDR;
+ 	} else if (payload->ciaddr) {
+-		DEBUG("unicasting packet to client ciaddr");
++		bb_info_msg("unicasting packet to client ciaddr");
+ 		ciaddr = payload->ciaddr;
+ 		chaddr = payload->chaddr;
+ 	} else if (ntohs(payload->flags) & BROADCAST_FLAG) {
+-		DEBUG("broadcasting packet to client (requested)");
++		bb_info_msg("broadcasting packet to client (requested)");
+ 		ciaddr = INADDR_BROADCAST;
+ 		chaddr = MAC_BCAST_ADDR;
+ 	} else {
+-		DEBUG("unicasting packet to client yiaddr");
++		bb_info_msg("unicasting packet to client yiaddr");
+ 		ciaddr = payload->yiaddr;
+ 		chaddr = payload->chaddr;
+ 	}
+@@ -193,7 +193,7 @@
+ 
+ 	init_packet(&packet, oldpacket, DHCPNAK);
+ 
+-	DEBUG("Sending NAK");
++	bb_info_msg("Sending NAK");
+ 	return send_packet(&packet, 1);
+ }
+ 

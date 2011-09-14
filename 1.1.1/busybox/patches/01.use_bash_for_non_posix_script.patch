@@ -1,0 +1,8 @@
+--- busybox-1.4.1/scripts/trylink	2007-01-24 22:34:36.000000000 +0100
++++ src/scripts/trylink	2007-03-15 00:36:47.000000000 +0100
+@@ -1,4 +1,4 @@
+-#!/bin/sh
++#!/bin/bash
+ 
+ debug=false
+ 

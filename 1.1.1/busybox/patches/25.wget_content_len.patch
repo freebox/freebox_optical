@@ -1,0 +1,12 @@
+--- busybox-1.6.0/networking/wget.c	2007-06-01 13:48:29.000000000 +0200
++++ src/networking/wget.c	2008-08-25 16:11:22.000000000 +0200
+@@ -492,6 +492,9 @@
+ 	if (!(opt & WGET_OPT_QUIET))
+ 		progressmeter(1);
+ 
++	if (got_clen && content_len > 0)
++		bb_error_msg_and_die("content-length not fully received");
++
+ 	if ((use_proxy == 0) && target.is_ftp) {
+ 		fclose(dfp);
+ 		if (ftpcmd(NULL, NULL, sfp, buf) != 226)

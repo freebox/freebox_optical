@@ -1,0 +1,17 @@
+--- src/networking/udhcp/dhcpd.c.old	2007-06-07 19:27:07.000000000 +0200
++++ src/networking/udhcp/dhcpd.c	2007-06-07 19:28:50.000000000 +0200
+@@ -212,10 +212,12 @@
+ 				        || requested_align > server_config.end
+ 				) {
+ 					sendNAK(&packet);
+-				} /* else remain silent */
+-
++				} else {
++					sendNAK(&packet);
++				}
+ 			} else {
+ 				/* RENEWING or REBINDING State */
++				sendNAK(&packet);
+ 			}
+ 			break;
+ 		case DHCPDECLINE:

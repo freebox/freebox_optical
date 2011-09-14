@@ -1,0 +1,86 @@
+diff -Nru busybox-1.6.0/procps/Config.in src/procps/Config.in
+--- busybox-1.6.0/procps/Config.in	2007-06-01 13:48:40.000000000 +0200
++++ src/procps/Config.in	2007-11-16 16:10:58.000000000 +0100
+@@ -108,6 +108,13 @@
+ 	help
+ 	  Make top display CPU usage.
+ 
++config FEATURE_TOP_DISPLAY_CPU_TIMES
++	bool "Support showing CPU time (user, idle, irq, softirq, ...)."
++	default n
++	depends on TOP
++	help
++	  Make top display CPU times.
++
+ config UPTIME
+ 	bool "uptime"
+ 	default n
+diff -Nru busybox-1.6.0/procps/top.c src/procps/top.c
+--- busybox-1.6.0/procps/top.c	2007-06-01 13:48:40.000000000 +0200
++++ src/procps/top.c	2007-11-16 16:14:13.000000000 +0100
+@@ -299,6 +299,27 @@
+ 	return total;
+ }
+ 
++#if ENABLE_FEATURE_TOP_DISPLAY_CPU_TIMES
++static void display_cpu_jiffies(void)
++{
++	unsigned long long usr, sys, _nice, idle, iowait, irq, softirq, steal;
++	unsigned long long total;
++
++	total = (jif.total - prev_jif.total);
++	usr = (jif.usr - prev_jif.usr) * 100 / total;
++	sys = (jif.sys - prev_jif.sys) * 100 / total;
++	_nice = (jif.nic - prev_jif.nic) * 100 / total;
++	idle = (jif.idle - prev_jif.idle) * 100 / total;
++	iowait = (jif.iowait - prev_jif.iowait) * 100 / total;
++	irq = (jif.irq - prev_jif.irq) * 100 / total;
++	softirq = (jif.softirq - prev_jif.softirq) * 100 / total;
++	steal = (jif.steal - prev_jif.steal) * 100 / total;
++
++	printf("Cpu(s): %llu%%us %llu%%sy %llu%%ni %llu%%id %llu%%wa %llu%%hi "
++	       "%llu%%si %llu%%st\n",
++	       usr, sys, _nice, idle, iowait, irq, softirq, steal);
++}
++#endif
+ 
+ /* display process statuses */
+ static void display_status(int count, int scr_width)
+@@ -311,11 +332,16 @@
+ 	char vsz_str_buf[8];
+ 	unsigned long total_memory = display_generic(scr_width); /* or use total_vsz? */
+ 	unsigned pmem_shift, pmem_scale;
+-
+ #if ENABLE_FEATURE_TOP_CPU_USAGE_PERCENTAGE
+ 	unsigned pcpu_shift, pcpu_scale;
+ 	unsigned busy_jifs;
++#endif
+ 
++#if ENABLE_FEATURE_TOP_DISPLAY_CPU_TIMES
++	display_cpu_jiffies();
++#endif
++
++#if ENABLE_FEATURE_TOP_CPU_USAGE_PERCENTAGE
+ 	/* what info of the processes is shown */
+ 	printf(OPT_BATCH_MODE ? "%.*s" : "\e[7m%.*s\e[0m", scr_width,
+ 		"  PID USER     STATUS   VSZ  PPID %CPU %MEM COMMAND");
+@@ -328,6 +354,7 @@
+ 	sizeof( "  PID USER     STATUS   VSZ  PPID %MEM C")
+ #endif
+ 
++
+ 	/*
+ 	 * MEM% = s->vsz/MemTotal
+ 	 */
+@@ -490,6 +517,11 @@
+ 		lines -= 3;
+ #endif /* FEATURE_USE_TERMIOS */
+ 
++#ifdef ENABLE_FEATURE_TOP_DISPLAY_CPU_TIMES
++		/* one more line used by cpu time */
++		lines -=1;
++#endif
++
+ 		/* read process IDs & status for all the processes */
+ 		while ((p = procps_scan(p, 0
+ 				| PSSCAN_PID

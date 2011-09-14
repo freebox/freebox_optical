@@ -1,0 +1,90 @@
+--- busybox-1.6.0/procps/kill.c	2007-06-01 13:48:40.000000000 +0200
++++ src/procps/kill.c	2009-02-06 22:41:46.000000000 +0100
+@@ -23,7 +23,6 @@
+  * kill %n gets translated into kill ' -<process group>' by shell (note space!)
+  * This is needed to avoid collision with kill -9 ... syntax
+  */
+-
+ int kill_main(int argc, char **argv);
+ int kill_main(int argc, char **argv)
+ {
+@@ -100,6 +99,11 @@
+ 		if (arg[0] != '-') goto do_it_now;
+ 	}
+ 
++	if (killall5 && arg[1] == 'o') {
++		/* pid omit list starts here */
++		goto do_it_now;
++	}
++
+ 	/* -SIG */
+ 	signo = get_signum(&arg[1]);
+ 	if (signo < 0) { /* || signo > MAX_SIGNUM ? */
+@@ -109,11 +113,17 @@
+ 	arg = *++argv;
+ 	argc--;
+ 
++
+ do_it_now:
+ 
+ 	if (killall5) {
+ 		pid_t sid;
+ 		procps_status_t* p = NULL;
++		int ret = 0;
++
++		/* remaining args should be -o pid [-o pid ...] */
++		if (argc & 1)
++			bb_show_usage();
+ 
+ 		/* Now stop all processes */
+ 		kill(-1, SIGSTOP);
+@@ -122,12 +132,47 @@
+ 		sid = getsid(pid);
+ 		/* Now kill all processes except our session */
+ 		while ((p = procps_scan(p, PSSCAN_PID|PSSCAN_SID))) {
+-			if (p->sid != sid && p->pid != pid && p->pid != 1)
++			int i, found;
++
++			if (p->sid == (unsigned)sid ||
++			    p->pid == (unsigned)pid ||
++			    p->pid == 1)
++				continue;
++
++			/* check all "-o omitpid" */
++			found = 0;
++			for (i = 0; i < argc - 1; i += 2) {
++				pid_t omit;
++
++				arg = argv[i];
++				if (arg[0] != '-' || arg[1] != 'o') {
++					bb_error_msg("bad option '%s'", arg);
++					ret = 1;
++					goto resume;
++				}
++
++				arg = argv[i + 1];
++				omit = bb_strtoi(arg, NULL, 10);
++				if (errno) {
++					bb_error_msg("bad pid '%s'", arg);
++					ret = 1;
++					goto resume;
++				}
++
++				if (p->pid == omit) {
++					found = 1;
++					break;
++				}
++			}
++
++			/* kill unless found */
++			if (!found)
+ 				kill(p->pid, signo);
+ 		}
++resume:
+ 		/* And let them continue */
+ 		kill(-1, SIGCONT);
+-		return 0;
++		return ret;
+ 	}
+ 
+ 	/* Pid or name is required for kill/killall */

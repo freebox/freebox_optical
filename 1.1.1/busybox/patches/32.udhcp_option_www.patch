@@ -1,0 +1,10 @@
+--- src/networking/udhcp/options.c	2009-03-12 20:05:56.000000000 +0100
++++ src/networking/udhcp/options.c.new	2009-03-12 20:06:10.000000000 +0100
+@@ -42,6 +42,7 @@
+ 	{"clientid",    OPTION_STRING,                          0x3D},
+ 	{"tftp",        OPTION_STRING,                          0x42},
+ 	{"bootfile",    OPTION_STRING,                          0x43},
++	{"wwwsrv",      OPTION_IP | OPTION_LIST,                0x48},
+ 	{"userclass",   OPTION_STRING,                          0x4D},
+ #if ENABLE_FEATURE_RFC3397
+ 	{"search",      OPTION_STR1035 | OPTION_LIST | OPTION_REQ, 0x77},

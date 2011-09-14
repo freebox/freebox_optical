@@ -1,0 +1,11 @@
+--- busybox-1.4.1/networking/udhcp/files.c	2007-01-24 22:34:34.000000000 +0100
++++ src/networking/udhcp/files.c	2007-03-15 01:41:47.000000000 +0100
+@@ -16,7 +16,7 @@
+  * chars long. However, 80 bytes will be enough for most, and won't
+  * hog up memory. If you have a special application, change it
+  */
+-#define READ_CONFIG_BUF_SIZE 80
++#define READ_CONFIG_BUF_SIZE 256
+ 
+ /* on these functions, make sure you datatype matches */
+ static int read_ip(const char *line, void *arg)
